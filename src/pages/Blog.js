@@ -15,10 +15,15 @@ function Blog() {
     }));
   };
 
+  // Fetch blogs from Firestore
   const fetchBlogs = async () => {
     const blogsCollection = collection(db, "blogs");
     const blogSnapshot = await getDocs(blogsCollection);
-    const blogList = blogSnapshot.docs.map((doc) => doc.data());
+    const blogList = blogSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    console.log("Fetched Blogs:", blogList); // Debugging
     setBlogs(blogList);
   };
 
@@ -26,24 +31,32 @@ function Blog() {
     fetchBlogs();
   }, []);
 
+  // Parse Firestore date
   const parseDate = (dateString) => {
-    const [day, month] = dateString.split(" ");
-    const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
-    const monthIndex = monthNames.indexOf(month);
-    return new Date(new Date().getFullYear(), monthIndex, parseInt(day));
+    try {
+      // Convert the date to a JavaScript Date object
+      return new Date(dateString);
+    } catch (error) {
+      console.error("Date Parsing Error:", error, "Date String:", dateString);
+      return new Date(); // Default to current date if parsing fails
+    }
   };
 
-  const filteredBlogs = blogs.filter((blog) =>
-    blog.date.toLowerCase().includes(searchDate.toLowerCase())
-  );
+  // Filter blogs by search date
+  const filteredBlogs = blogs.filter((blog) => {
+    if (!searchDate) return true; // Show all blogs if no search date
+    return blog.date.toLowerCase().includes(searchDate.toLowerCase());
+  });
 
-  const sortedBlogs = filteredBlogs.sort((a, b) => {
+  // Sort blogs by date
+  const sortedBlogs = [...filteredBlogs].sort((a, b) => {
     const dateA = parseDate(a.date);
     const dateB = parseDate(b.date);
-    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+
+    console.log("Comparing Dates:", { dateA, dateB }); // Debugging
+
+    if (sortOrder === "asc") return dateA - dateB; // Oldest to Newest
+    return dateB - dateA; // Newest to Oldest
   });
 
   return (
@@ -57,7 +70,7 @@ function Blog() {
           <input
             type="text"
             className="search_input"
-            placeholder="Search by Date (dd/mm/yyyy)"
+            placeholder="Search by Date (YYYY-MM-DD)"
             value={searchDate}
             onChange={(e) => setSearchDate(e.target.value)}
           />
@@ -67,8 +80,8 @@ function Blog() {
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
           >
-            <option value="asc">Sort by Date (Latest)</option>
-            <option value="desc">Sort by Date (Earliest)</option>
+            <option value="asc">Sort by Date (Earliest)</option>
+            <option value="desc">Sort by Date (latest)</option>
           </select>
         </div>
 
